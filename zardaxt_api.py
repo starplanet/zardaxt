@@ -45,27 +45,33 @@ class ZardaxtApiServer(BaseHTTPRequestHandler):
     def send_json(self, payload):
         self.send_response(200)
         self.send_header("Content-type", "text/json")
+        body = bytes(json.dumps(payload, indent=2, sort_keys=True), "utf-8")
+        self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(
-            bytes(json.dumps(payload, indent=2, sort_keys=True), "utf-8"))
+        self.wfile.write(body)
 
     def deny(self):
         self.send_response(403)
+        self.send_header("Content-type", "text/plain")
+        body = bytes("Access Denied", "utf-8")
+        self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(
-            bytes("Access Denied", "utf-8"))
+        self.wfile.write(body)
 
     def send_text(self, payload):
         self.send_response(200)
         self.send_header("Content-type", "text/plain")
+        body = bytes(payload, "utf-8")
+        self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(bytes(payload, "utf-8"))
+        self.wfile.write(body)
 
     # infer the base operating system from the user-agent
     # and then infer the operating system from the TCP/IP
     # fingerprint and detect if there is a lie
     def detect_os_mismatch(self, tcp_ip_fp):
         user_agent = self.get_user_agent()
+        log(f'user_agent={user_agent}', 'api')
         if user_agent:
             # get os by tcp ip fingerprint
             # Linux, macOS or Windows
@@ -95,6 +101,8 @@ class ZardaxtApiServer(BaseHTTPRequestHandler):
     def handle_lookup(self, client_ip, lookup_ip):
         detailed = self.get_query_arg('detail') is not None
         fp_copy = self.fingerprints.copy()
+        if lookup_ip.startswith('::ffff:'):
+            lookup_ip = lookup_ip[7:]
         fp_list = fp_copy.get(lookup_ip, None)
         if fp_list and len(fp_list) > 0:
             # return the newest fingerprint
@@ -112,7 +120,8 @@ class ZardaxtApiServer(BaseHTTPRequestHandler):
                     "os_mismatch": classification['details']['os_mismatch'],
                     "lookup_ip": lookup_ip,
                     "perfect_score": classification['details']["perfect_score"],
-                    "avg_score_os_class": classification["avg_score_os_class"]
+                    "avg_score_os_class": classification["avg_score_os_class"],
+                    "user_agent": self.get_user_agent(),
                 })
         else:
             msg = {

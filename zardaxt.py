@@ -190,7 +190,11 @@ def main():
 
         while True:
             (header, buf) = preader.next()
-            eth = dpkt.ethernet.Ethernet(buf)
+            try:
+                eth = dpkt.ethernet.Ethernet(buf)
+            except dpkt.dpkt.NeedData as e:
+                log('dpkt.dpkt.NeedData: {}'.format(e), 'zardaxt')
+                continue
             # Ignore everything other than IPv4 or IPv6
             if eth.type == dpkt.ethernet.ETH_TYPE_IP or eth.type == dpkt.ethernet.ETH_TYPE_IP6:
                 ip_pkt = eth.data
